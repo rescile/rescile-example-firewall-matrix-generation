@@ -1,0 +1,3 @@
+name,source_app,dest_app,dest_port,protocol
+web-to-api,web-frontend,user-api,443,tcp
+api-to-auth,user-api,auth-service,8080,tcp

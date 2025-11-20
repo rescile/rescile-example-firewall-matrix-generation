@@ -1,0 +1,4 @@
+name,networks
+web-server-01,dmz-prod
+api-server-01,internal-prod
+api-server-02,internal-prod

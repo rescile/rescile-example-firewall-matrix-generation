@@ -1,0 +1,19 @@
+origin_resource = "connections"
+
+[[output]]
+resource_type = "firewall_rule"
+# Create a unique name for each rule.
+name = "rule-{{ origin_resource.source_app }}-to-{{ origin_resource.dest_app }}"
+
+# The template traverses the graph from the 'connection' node to its linked
+# source and destination applications to gather all necessary info.
+template = """
+{
+  "source_zone": "{{ origin_resource.applications[0].zone }}",
+  "source_app": "{{ origin_resource.applications[0].name }}",
+  "destination_zone": "{{ origin_resource.applications[1].zone }}",
+  "destination_app": "{{ origin_resource.applications[1].name }}",
+  "destination_port": "{{ origin_resource.dest_port }}",
+  "protocol": "{{ origin_resource.protocol }}"
+}
+"""

@@ -1,0 +1,15 @@
+# --- Chunk 1: Propagate network zone to server ---
+origin_resource = "servers"
+[[subscribe_property]]
+origin_resource_type = "networks"
+origin_property      = "zone"
+target_resource_type = "servers"
+target_property      = "zone"
+
+# --- Chunk 2: Propagate network zone from server to application ---
+origin_resource = "applications"
+[[subscribe_property]]
+origin_resource_type = "servers"
+origin_property      = "zone"
+target_resource_type = "applications"
+target_property      = "zone"

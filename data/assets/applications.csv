@@ -1,0 +1,4 @@
+name,servers
+web-frontend,web-server-01
+user-api,api-server-01
+auth-service,api-server-02
