@@ -124,21 +124,17 @@ api-to-auth,user-api,auth-service,8080,tcp
 This model propagates the `zone` information from the `network` up to the `application`, so each application node knows its security zone.
 
 ```toml
-# --- Chunk 1: Propagate network zone to server ---
-origin_resource = "servers"
-[[subscribe_property]]
-origin_resource_type = "networks"
-origin_property      = "zone"
-target_resource_type = "servers"
-target_property      = "zone"
+# --- Propagate network zone from network to server ---
+origin_resource = "networks"
+[[copy_property]]
+to = "servers"
+properties = [ "zone" ]
 
-# --- Chunk 2: Propagate network zone from server to application ---
-origin_resource = "applications"
-[[subscribe_property]]
-origin_resource_type = "servers"
-origin_property      = "zone"
-target_resource_type = "applications"
-target_property      = "zone"
+# --- Propagate server zone to application ---
+origin_resource = "servers"
+[[copy_property]]
+to = "applications"
+properties = [ "zone" ]
 ```
 
 #### 2.2. Architectural Model (`data/models/connections.toml`)
@@ -146,30 +142,24 @@ target_property      = "zone"
 This model establishes the relationships between a 'connection' asset and
 the source and destination 'application' assets it refers to. Since a
 connection has two distinct links to applications (a source and a destination),
-this cannot be modeled using simple foreign keys in the CSV.
-
-Instead, we use `enrich_property` rules to perform a "join" on the graph.
-These rules create explicit, named relationships, which can then be traversed
-by the output templates.
+this is modeled using `link_resources` rules. These rules perform a "join"
+on the graph to create explicit, named relationships that can be traversed by
+the output templates.
 
 ```toml
 origin_resource = "connections"
 
 # Create a 'source_app' relation from a connection to its source application.
-[[enrich_property]]
-from_resource_type = "applications"
-origin_key         = "source_app"
-target_key         = "name"
-relation_type      = "source_app"
-reverse_relation   = false
+[[link_resources]]
+with = "applications"
+on = { local = "source_app", remote = "name" }
+create_relation = { type = "source_app" }
 
 # Create a 'dest_app' relation from a connection to its destination application.
-[[enrich_property]]
-from_resource_type = "applications"
-origin_key         = "dest_app"
-target_key         = "name"
-relation_type      = "dest_app"
-reverse_relation   = false
+[[link_resources]]
+with = "applications"
+on = { local = "dest_app", remote = "name" }
+create_relation = { type = "dest_app" }
 ```
 
 #### 3. Output Generation (`data/output/firewall_matrix.toml`)

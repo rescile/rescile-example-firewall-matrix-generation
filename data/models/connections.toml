@@ -2,25 +2,21 @@
 # the source and destination 'application' assets it refers to. Since a
 # connection has two distinct links to applications (a source and a destination),
 # this cannot be modeled using simple foreign keys in the CSV.
-#
-# Instead, we use `enrich_property` rules to perform a "join" on the graph.
-# These rules create explicit, named relationships, which can then be traversed
-# by the output templates.
+# 
+# Instead, we use `link_resources` rules to perform a "join" on the graph. These
+# rules create explicit, named relationships, which can then be traversed by the
+# output templates.
 
 origin_resource = "connections"
 
 # Create a 'source_app' relation from a connection to its source application.
-[[enrich_property]]
-from_resource_type = "applications"
-origin_key         = "source_app"
-target_key         = "name"
-relation_type      = "source_app"
-reverse_relation   = false
+[[link_resources]]
+with = "applications"
+on = { local = "source_app", remote = "name" }
+create_relation = { type = "source_app" }
 
 # Create a 'dest_app' relation from a connection to its destination application.
-[[enrich_property]]
-from_resource_type = "applications"
-origin_key         = "dest_app"
-target_key         = "name"
-relation_type      = "dest_app"
-reverse_relation   = false
+[[link_resources]]
+with = "applications"
+on = { local = "dest_app", remote = "name" }
+create_relation = { type = "dest_app" }
