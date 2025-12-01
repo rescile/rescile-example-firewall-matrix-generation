@@ -1,12 +1,8 @@
 # This model establishes the relationships between a 'connection' asset and
-# the source and destination 'application' assets it refers to. Since a
-# connection has two distinct links to applications (a source and a destination),
-# this cannot be modeled using simple foreign keys in the CSV.
-# 
-# Instead, we use `link_resources` rules to perform a "join" on the graph. These
-# rules create explicit, named relationships, which can then be traversed by the
-# output templates.
-
+# the source and destination 'application' assets it refers to. Since a connection
+# has two distinct links to the 'applications' resource type, we use `link_resources`
+# to create explicit, named relationships ('source_app' and 'dest_app') that
+# can be traversed by output templates.
 origin_resource = "connections"
 
 # Create a 'source_app' relation from a connection to its source application.

@@ -1,11 +1,7 @@
-# --- Propagate network zone from network to server ---
-origin_resource = "networks"
-[[copy_property]]
-to = "servers"
-properties = [ "zone" ]
+# Propagate the 'zone' property from a network, through its server, up to the application.
+# This uses path traversal to find the related network for each application.
+origin_resource = "applications"
 
-# --- Propagate server zone to application ---
-origin_resource = "servers"
 [[copy_property]]
-to = "applications"
+from = "servers.networks"
 properties = [ "zone" ]

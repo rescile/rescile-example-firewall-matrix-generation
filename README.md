@@ -121,30 +121,21 @@ api-to-auth,user-api,auth-service,8080,tcp
 
 #### 2.1. Architectural Model (`data/models/network_zones.toml`)
 
-This model propagates the `zone` information from the `network` up to the `application`, so each application node knows its security zone.
+This model propagates the `zone` property from a `network` resource, through its connected `server`, and up to the `application`. This ensures each application node is aware of its security zone. This is achieved in a single step by using path traversal in the `from` selector of the `copy_property` rule, pulling the data from a distantly related node.
 
 ```toml
-# --- Propagate network zone from network to server ---
-origin_resource = "networks"
-[[copy_property]]
-to = "servers"
-properties = [ "zone" ]
+# Propagate the 'zone' property from a network, through its server, up to the application.
+# This uses path traversal to find the related network for each application.
+origin_resource = "applications"
 
-# --- Propagate server zone to application ---
-origin_resource = "servers"
 [[copy_property]]
-to = "applications"
+from = "servers.networks"
 properties = [ "zone" ]
 ```
 
 #### 2.2. Architectural Model (`data/models/connections.toml`)
 
-This model establishes the relationships between a 'connection' asset and
-the source and destination 'application' assets it refers to. Since a
-connection has two distinct links to applications (a source and a destination),
-this is modeled using `link_resources` rules. These rules perform a "join"
-on the graph to create explicit, named relationships that can be traversed by
-the output templates.
+This model establishes relationships between `connection` assets and the `application` assets they refer to. Since each connection has two distinct links to applications (a source and a destination), we use `link_resources` to create explicit, named relations (`source_app` and `dest_app`). These named relations are essential for the output template to traverse the graph and retrieve information from the correct source and destination applications.
 
 ```toml
 origin_resource = "connections"
@@ -164,7 +155,7 @@ create_relation = { type = "dest_app" }
 
 #### 3. Output Generation (`data/output/firewall_matrix.toml`)
 
-This is where the magic happens. We iterate over every `connection` resource and generate a structured `firewall_rule` containing all the required data.
+This is where the magic happens. We iterate over every `connection` resource and generate a structured `firewall_rule`. The template leverages Rescile's path traversal capability to fetch data from related nodes. It follows the `source_app` and `dest_app` relations (created in the previous step) to access properties from the connected `application` resources, making the template clear and explicit.
 
 ```toml
 origin_resource = "connections"
@@ -172,16 +163,16 @@ origin_resource = "connections"
 [[output]]
 resource_type = "firewall_rule"
 # Create a unique name for each rule.
-name = "rule-{{ origin_resource.source_app }}-to-{{ origin_resource.dest_app }}"
+name = "rule-{{ origin_resource.source_app[0].name }}-to-{{ origin_resource.dest_app[0].name }}"
 
 # The template traverses the graph from the 'connection' node to its linked
 # source and destination applications to gather all necessary info.
 template = """
 {
-  "source_zone": "{{ origin_resource.applications[0].zone }}",
-  "source_app": "{{ origin_resource.applications[0].name }}",
-  "destination_zone": "{{ origin_resource.applications[1].zone }}",
-  "destination_app": "{{ origin_resource.applications[1].name }}",
+  "source_zone": "{{ origin_resource.source_app[0].zone }}",
+  "source_app": "{{ origin_resource.source_app[0].name }}",
+  "destination_zone": "{{ origin_resource.dest_app[0].zone }}",
+  "destination_app": "{{ origin_resource.dest_app[0].name }}",
   "destination_port": "{{ origin_resource.dest_port }}",
   "protocol": "{{ origin_resource.protocol }}"
 }
@@ -197,9 +188,24 @@ After running the importer, we can query for all the `firewall_rule` resources.
 query GetFirewallRules {
   firewall_rule {
     name
-    rule_web_frontend_to_user_api
-    rule_user_api_to_auth_service
+    rule_web_frontend_to_user_api {
+      protocol
+      destination_port
+      source_zone
+      destination_app
+      source_app
+      destination_zone
+    }
+    rule_user_api_to_auth_service {
+      source_zone
+      destination_port
+      source_app
+      destination_zone
+      destination_app
+      protocol
+    }
   }
+}
 }
 ```
 
@@ -211,20 +217,20 @@ query GetFirewallRules {
       {
         "name": "firewall_rule",
         "rule_web_frontend_to_user_api": {
-          "destination_app": "user-api",
-          "destination_port": "443",
-          "destination_zone": "INTERNAL",
           "protocol": "tcp",
+          "destination_port": "443",
+          "source_zone": "DMZ",
+          "destination_app": "user-api",
           "source_app": "web-frontend",
-          "source_zone": "DMZ"
+          "destination_zone": "INTERNAL"
         },
         "rule_user_api_to_auth_service": {
-          "destination_app": "auth-service",
+          "source_zone": "INTERNAL",
           "destination_port": "8080",
-          "destination_zone": "INTERNAL",
-          "protocol": "tcp",
           "source_app": "user-api",
-          "source_zone": "INTERNAL"
+          "destination_zone": "INTERNAL",
+          "destination_app": "auth-service",
+          "protocol": "tcp"
         }
       }
     ]
