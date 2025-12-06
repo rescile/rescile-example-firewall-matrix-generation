@@ -138,19 +138,21 @@ properties = [ "zone" ]
 This model establishes relationships between `connection` assets and the `application` assets they refer to. Since each connection has two distinct links to applications (a source and a destination), we use `link_resources` to create explicit, named relations (`source_app` and `dest_app`). These named relations are essential for the output template to traverse the graph and retrieve information from the correct source and destination applications.
 
 ```toml
+# This model enriches a 'connection' asset with zone information by finding
+# the related source and destination applications and copying their 'zone' property.
 origin_resource = "connections"
 
-# Create a 'source_app' relation from a connection to its source application.
+# Find the source application and copy its zone property.
 [[link_resources]]
 with = "applications"
 on = { local = "source_app", remote = "name" }
-create_relation = { type = "source_app" }
+copy_properties = [ { from = "zone", as = "source_zone" } ]
 
-# Create a 'dest_app' relation from a connection to its destination application.
+# Find the destination application and copy its zone property.
 [[link_resources]]
 with = "applications"
 on = { local = "dest_app", remote = "name" }
-create_relation = { type = "dest_app" }
+copy_properties = [ { from = "zone", as = "dest_zone" } ]
 ```
 
 #### 3. Output Generation (`data/output/firewall_matrix.toml`)
@@ -163,16 +165,16 @@ origin_resource = "connections"
 [[output]]
 resource_type = "firewall_rule"
 # Create a unique name for each rule.
-name = "rule-{{ origin_resource.source_app[0].name }}-to-{{ origin_resource.dest_app[0].name }}"
+name = "rule-{{ origin_resource.source_app }}-to-{{ origin_resource.dest_app }}"
 
 # The template traverses the graph from the 'connection' node to its linked
 # source and destination applications to gather all necessary info.
 template = """
 {
-  "source_zone": "{{ origin_resource.source_app[0].zone }}",
-  "source_app": "{{ origin_resource.source_app[0].name }}",
-  "destination_zone": "{{ origin_resource.dest_app[0].zone }}",
-  "destination_app": "{{ origin_resource.dest_app[0].name }}",
+  "source_zone": "{{ origin_resource.source_zone }}",
+  "source_app": "{{ origin_resource.source_app }}",
+  "destination_zone": "{{ origin_resource.dest_zone }}",
+  "destination_app": "{{ origin_resource.dest_app }}",
   "destination_port": "{{ origin_resource.dest_port }}",
   "protocol": "{{ origin_resource.protocol }}"
 }
@@ -188,24 +190,13 @@ After running the importer, we can query for all the `firewall_rule` resources.
 query GetFirewallRules {
   firewall_rule {
     name
-    rule_web_frontend_to_user_api {
-      protocol
-      destination_port
-      source_zone
-      destination_app
-      source_app
-      destination_zone
-    }
-    rule_user_api_to_auth_service {
-      source_zone
-      destination_port
-      source_app
-      destination_zone
-      destination_app
-      protocol
-    }
+    destination_zone
+    destination_port
+    destination_app
+    source_zone
+    source_zone
+    protocol
   }
-}
 }
 ```
 
@@ -215,23 +206,20 @@ query GetFirewallRules {
   "data": {
     "firewall_rule": [
       {
-        "name": "firewall_rule",
-        "rule_web_frontend_to_user_api": {
-          "protocol": "tcp",
-          "destination_port": "443",
-          "source_zone": "DMZ",
-          "destination_app": "user-api",
-          "source_app": "web-frontend",
-          "destination_zone": "INTERNAL"
-        },
-        "rule_user_api_to_auth_service": {
-          "source_zone": "INTERNAL",
-          "destination_port": "8080",
-          "source_app": "user-api",
-          "destination_zone": "INTERNAL",
-          "destination_app": "auth-service",
-          "protocol": "tcp"
-        }
+        "name": "rule-web-frontend-to-user-api",
+        "destination_zone": "INTERNAL",
+        "destination_port": 443,
+        "destination_app": "user-api",
+        "source_zone": "DMZ",
+        "protocol": "tcp"
+      },
+      {
+        "name": "rule-user-api-to-auth-service",
+        "destination_zone": "INTERNAL",
+        "destination_port": 8080,
+        "destination_app": "auth-service",
+        "source_zone": "INTERNAL",
+        "protocol": "tcp"
       }
     ]
   }

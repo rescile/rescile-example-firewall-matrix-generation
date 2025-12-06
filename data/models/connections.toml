@@ -1,18 +1,15 @@
-# This model establishes the relationships between a 'connection' asset and
-# the source and destination 'application' assets it refers to. Since a connection
-# has two distinct links to the 'applications' resource type, we use `link_resources`
-# to create explicit, named relationships ('source_app' and 'dest_app') that
-# can be traversed by output templates.
+# This model enriches a 'connection' asset with zone information by finding
+# the related source and destination applications and copying their 'zone' property.
 origin_resource = "connections"
 
-# Create a 'source_app' relation from a connection to its source application.
+# Find the source application and copy its zone property.
 [[link_resources]]
 with = "applications"
 on = { local = "source_app", remote = "name" }
-create_relation = { type = "source_app" }
+copy_properties = [ { from = "zone", as = "source_zone" } ]
 
-# Create a 'dest_app' relation from a connection to its destination application.
+# Find the destination application and copy its zone property.
 [[link_resources]]
 with = "applications"
 on = { local = "dest_app", remote = "name" }
-create_relation = { type = "dest_app" }
+copy_properties = [ { from = "zone", as = "dest_zone" } ]
